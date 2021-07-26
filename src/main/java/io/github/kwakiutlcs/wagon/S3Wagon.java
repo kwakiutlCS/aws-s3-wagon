@@ -10,7 +10,8 @@ import org.apache.maven.wagon.authentication.AuthenticationException;
 import org.apache.maven.wagon.authorization.AuthorizationException;
 import org.apache.maven.wagon.resource.Resource;
 
-import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -44,20 +45,32 @@ public class S3Wagon extends AbstractWagon {
     @Override
     public void get(String resourceName, File destination)
             throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException {
-        var s3File = getS3File(resourceName);
+        try {
+            var is = getS3InputStream(resourceName);
+
+            // delegating transfer to AbstractWagon takes care of firing the transfer events
+            getTransfer(new Resource(resourceName), destination, is);
         
-        getTransfer(new Resource(resourceName), destination, s3File.asInputStream());
+        } catch (SdkException ignored) {
+            // nothing to transfer
+        }
     }
 
     @Override
     public boolean getIfNewer(String resourceName, File destination, long timestamp)
             throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException {
-        var s3File = getS3File(resourceName);
+        try {
+            var is = getS3InputStream(resourceName);
+            
+            if (is.response().lastModified().getEpochSecond() >= timestamp) {
+                // delegating transfer to AbstractWagon takes care of firing the transfer events
+                getTransfer(new Resource(resourceName), destination, is);
+    
+                return true;
+            }
         
-        if (s3File.response().lastModified().getEpochSecond() >= timestamp) {
-            getTransfer(new Resource(resourceName), destination, s3File.asInputStream());
-
-            return true;
+        } catch (SdkException ignored) {
+            // nothing to transfer
         }
 
         return false;
@@ -71,6 +84,7 @@ public class S3Wagon extends AbstractWagon {
                                       .key(getFullKeyPath(destination))
                                       .build();
        
+        // this does not trigger the necessary transfer events to track the upload
         client.putObject(request, source.toPath());
     }
 
@@ -84,13 +98,13 @@ public class S3Wagon extends AbstractWagon {
         this.client.close();
     }
     
-    private ResponseBytes<GetObjectResponse> getS3File(String resourceName) {
+    private ResponseInputStream<GetObjectResponse> getS3InputStream(String resourceName) {
         var request = GetObjectRequest.builder()
                                       .bucket(repository.getHost())
                                       .key(getFullKeyPath(resourceName))
                                       .build();
 
-        return client.getObjectAsBytes(request);
+        return client.getObject(request);
     }
 
     private String getFullKeyPath(String resourceName) {

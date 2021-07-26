@@ -26,25 +26,38 @@ class S3WagonTest {
     static String KEY_PATH = "path";
     static String RESOURCE = "resource";
     
-    private S3ClientSpy client = new S3ClientSpy(TEST_BUCKET, KEY_PATH+"/"+RESOURCE);
+    private S3ClientSpy client = S3ClientSpy.of(TEST_BUCKET, KEY_PATH+"/"+RESOURCE);
     
     private S3Wagon wagon = new S3Wagon(() -> client);
     
     @BeforeEach
     void init() throws ConnectionException, AuthenticationException {
-        wagon.connect(new Repository("id", "s3://"+TEST_BUCKET+"/"+KEY_PATH));
-        wagon.openConnectionInternal();
+        connect(wagon);
     }
     
     @Test
     void writeResourceToFileWhenGettingItFromS3() throws TransferFailedException,
             ResourceDoesNotExistException, AuthorizationException {
         var file = new File("src/test/resources/destiny");
-        file.delete();
         
         wagon.get(RESOURCE, file);
         
         assertEquals(8, file.length());
+
+        // cleanup
+        file.delete();
+    }
+    
+    @Test
+    void doNotWriteResourceToFileWhenGettingIfKeyDoesNotExist() throws TransferFailedException,
+            ResourceDoesNotExistException, AuthorizationException, ConnectionException, AuthenticationException {
+        wagon = connect(new S3Wagon(() -> S3ClientSpy.noKey()));
+        
+        var file = new File("src/test/resources/destiny");
+        
+        wagon.get(RESOURCE, file);
+        
+        assertEquals(0, file.length());
     }
     
     @ParameterizedTest
@@ -52,12 +65,14 @@ class S3WagonTest {
     void writeResourceToFileIfIsNewerThanGivenDate(long timestamp) throws TransferFailedException,
             ResourceDoesNotExistException, AuthorizationException {
         var file = new File("src/test/resources/destiny");
-        file.delete();
         
         var result = wagon.getIfNewer(RESOURCE, file, timestamp);
         
         assertTrue(result);
         assertEquals(8, file.length());
+
+        // cleanup
+        file.delete();
     }
     
     @ParameterizedTest
@@ -65,12 +80,23 @@ class S3WagonTest {
     void doNotWriteResourceToFileIfIsOlderThanGivenDate(long timestamp) throws TransferFailedException,
             ResourceDoesNotExistException, AuthorizationException {
         var file = new File("src/test/resources/destiny");
-        file.delete();
         
         var result = wagon.getIfNewer(RESOURCE, file, timestamp);
         
         assertFalse(result);
         assertEquals(0L, file.length());
+    }
+    
+    @Test
+    void doNotWriteResourceToFileWhenGettingNewerFileIfKeyDoesNotExist() throws TransferFailedException,
+            ResourceDoesNotExistException, AuthorizationException, ConnectionException, AuthenticationException {
+        wagon = connect(new S3Wagon(() -> S3ClientSpy.noKey()));
+        
+        var file = new File("src/test/resources/destiny");
+        
+        wagon.getIfNewer(RESOURCE, file, 0L);
+        
+        assertEquals(0, file.length());
     }
     
     @Test
@@ -95,5 +121,12 @@ class S3WagonTest {
         wagon.closeConnection();
        
         assertTrue(client.isClosed());
+    }
+    
+    private S3Wagon connect(S3Wagon wagon) throws ConnectionException, AuthenticationException {
+        wagon.connect(new Repository("id", "s3://"+TEST_BUCKET+"/"+KEY_PATH));
+        wagon.openConnectionInternal();
+        
+        return wagon;
     }
 }

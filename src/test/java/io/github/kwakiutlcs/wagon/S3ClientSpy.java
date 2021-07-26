@@ -1,13 +1,16 @@
 package io.github.kwakiutlcs.wagon;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.Instant;
 
-import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.http.AbortableInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
@@ -21,9 +24,22 @@ class S3ClientSpy implements S3Client {
     
     private boolean closed = false;
     
-    S3ClientSpy(String bucket, String key) {
+    private boolean hasKey = true;
+    
+    private S3ClientSpy(String bucket, String key) {
         this.bucket = bucket;
         this.key = key;
+    }
+    
+    static S3ClientSpy of(String bucket, String key) {
+        return new S3ClientSpy(bucket, key);
+    }
+    
+    static S3ClientSpy noKey() {
+        var client = new S3ClientSpy("bucket", "key");
+        client.hasKey = false;
+        
+        return client;
     }
 
     @Override
@@ -37,15 +53,20 @@ class S3ClientSpy implements S3Client {
     }
 
     @Override
-    public ResponseBytes<GetObjectResponse> getObjectAsBytes(GetObjectRequest request) {
+    public ResponseInputStream<GetObjectResponse> getObject(GetObjectRequest request) {
+        if (!hasKey) {
+            throw NoSuchKeyException.builder().build();
+        }
+        
         if (closed
             || !bucket.equals(request.bucket())
-            || !key.equals(request.key())) {
+             || !key.equals(request.key())) {
             throw new IllegalArgumentException();
         }
-
+        
+        var is = AbortableInputStream.create(new ByteArrayInputStream("response".getBytes()));
         var response = GetObjectResponse.builder().lastModified(Instant.ofEpochSecond(1000)).build();
-        return ResponseBytes.fromByteArray(response, "response".getBytes());
+        return new ResponseInputStream<>(response, is);
     }
     
     @Override

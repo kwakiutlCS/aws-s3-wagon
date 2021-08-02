@@ -1,6 +1,8 @@
 package io.github.kwakiutlcs.wagon;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 import org.apache.maven.wagon.AbstractWagon;
 import org.apache.maven.wagon.ConnectionException;
@@ -86,6 +88,27 @@ public class S3Wagon extends AbstractWagon {
        
         // this does not trigger the necessary transfer events to track the upload
         client.putObject(request, source.toPath());
+    }
+    
+    @Override
+    public void putDirectory(File directory, String destination) throws TransferFailedException,
+            ResourceDoesNotExistException, AuthorizationException {
+        try {
+            Files.walk(directory.toPath())
+                 .filter(Files::isRegularFile)
+                 .forEach(p -> {
+                    try {
+                        put(p.toFile(), destination+p.toString().substring(directory.toString().length()));
+                    } catch (TransferFailedException | ResourceDoesNotExistException | AuthorizationException ignored) { }
+                 });
+        } catch (IOException e) {
+            throw new TransferFailedException(e.getMessage());
+        }
+    }
+    
+    @Override
+    public boolean supportsDirectoryCopy() {
+        return true;
     }
 
     @Override

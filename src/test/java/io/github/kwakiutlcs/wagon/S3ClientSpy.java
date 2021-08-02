@@ -4,6 +4,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.http.AbortableInputStream;
@@ -20,7 +22,7 @@ class S3ClientSpy implements S3Client {
     
     private final String key;
     
-    private File upload;
+    private Map<String, File> uploads = new HashMap<>();
     
     private boolean closed = false;
     
@@ -60,7 +62,7 @@ class S3ClientSpy implements S3Client {
         
         if (closed
             || !bucket.equals(request.bucket())
-             || !key.equals(request.key())) {
+            || !request.key().startsWith(key)) {
             throw new IllegalArgumentException();
         }
         
@@ -73,16 +75,16 @@ class S3ClientSpy implements S3Client {
     public PutObjectResponse putObject(PutObjectRequest request, Path path) {
         if (closed
             || !bucket.equals(request.bucket())
-            || !key.equals(request.key())) {
+            || !request.key().startsWith(key)) {
             throw new IllegalArgumentException();
         }
         
-        upload = path.toFile();
+        uploads.put(request.key(), path.toFile());
         return null;
     }
     
-    File getUpload() {
-        return upload;
+    File getUpload(String key) {
+        return uploads.get(key);
     }
     
     boolean isClosed() {

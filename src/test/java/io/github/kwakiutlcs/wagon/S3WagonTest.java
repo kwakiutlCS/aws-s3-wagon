@@ -105,7 +105,30 @@ class S3WagonTest {
         
         wagon.put(file, "resource");
     
-        assertEquals(file, client.getUpload());
+        assertEquals(file, client.getUpload("path/resource"));
+    }
+    
+    @Test
+    void uploadDirectoryToS3Client() throws TransferFailedException,
+            ResourceDoesNotExistException, AuthorizationException {
+        var file = new File("src/test/resources/directory");
+        var fileA = new File("src/test/resources/directory/a");
+        var fileB = new File("src/test/resources/directory/other/b");
+        
+        wagon.putDirectory(file, "resource");
+    
+        assertEquals(fileA, client.getUpload("path/resource/a"));
+        assertEquals(fileB, client.getUpload("path/resource/other/b"));
+    }
+    
+    @Test
+    void throwsSDKExceptionWhenErrorCopyingDirectory() {
+        assertThrows(TransferFailedException.class, () -> wagon.putDirectory(new File("inexistent"), "resource"));
+    }
+    
+    @Test
+    void shouldImplementDirectoryCopy() {
+        assertTrue(wagon.supportsDirectoryCopy());
     }
     
     @Test

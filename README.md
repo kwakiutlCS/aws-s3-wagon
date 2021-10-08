@@ -33,10 +33,15 @@ In the distribution management of the pom file
     <id>s3.snapshot</id>
     <url>s3://[S3 Bucket Name]/snapshot</url>
   </snapshotRepository>
+  <site>
+    <id>s3.site</id>
+    <url>s3://[S3 Bucket Name]/site</url>
+  </site>
 </distributionManagement>
 ````
-At the moment, maven site is not supported.
-`mvn deploy` will deploy the artifact in the S3 bucket. 
+`mvn deploy` will deploy the artifact in the S3 bucket.
+`mvn site-deploy` will deploy the maven site in the S3 bucket.
+
 ### Using the artifacts as dependencies in another project
 Besides adding the extension to the build section, as in the deploy artifact section, it is necessary to specify the repository
 ```

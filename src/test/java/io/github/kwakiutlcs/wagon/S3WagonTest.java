@@ -132,14 +132,6 @@ class S3WagonTest {
     }
     
     @Test
-    void defaultConstructorShouldCreateADefaultS3Client() throws ConnectionException, AuthenticationException {
-        var wagon = new S3Wagon();
-        
-        // should fail locally, because no AWS_REGION is defined
-        assertThrows(SdkClientException.class, () -> wagon.openConnectionInternal());
-    }
-    
-    @Test
     void closingWagonShouldCloseTheS3Client() throws ConnectionException {
         wagon.closeConnection();
        

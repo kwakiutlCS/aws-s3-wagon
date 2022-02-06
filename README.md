@@ -15,7 +15,7 @@ In the build section of the pom file
     <extension>
       <groupId>io.github.kwakiutlcs</groupId>
       <artifactId>aws-s3-wagon</artifactId>
-      <version>0.2.1</version>
+      <version>0.2.2</version>
    </extension>
   </extensions>
   ...

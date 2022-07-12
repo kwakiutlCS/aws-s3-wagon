@@ -53,8 +53,8 @@ public class S3Wagon extends AbstractWagon {
             // delegating transfer to AbstractWagon takes care of firing the transfer events
             getTransfer(new Resource(resourceName), destination, is);
         
-        } catch (SdkException ignored) {
-            // nothing to transfer
+        } catch (SdkException e) {
+            throw new TransferFailedException(e.getMessage());
         }
     }
 
@@ -71,8 +71,8 @@ public class S3Wagon extends AbstractWagon {
                 return true;
             }
         
-        } catch (SdkException ignored) {
-            // nothing to transfer
+        } catch (SdkException e) {
+            throw new TransferFailedException(e.getMessage());
         }
 
         return false;

@@ -55,7 +55,7 @@ class S3WagonTest {
         
         var file = new File("src/test/resources/destiny");
         
-        wagon.get(RESOURCE, file);
+        assertThrows(TransferFailedException.class, () -> wagon.get(RESOURCE, file));
         
         assertEquals(0, file.length());
     }
@@ -94,7 +94,7 @@ class S3WagonTest {
         
         var file = new File("src/test/resources/destiny");
         
-        wagon.getIfNewer(RESOURCE, file, 0L);
+        assertThrows(TransferFailedException.class, () -> wagon.getIfNewer(RESOURCE, file, 0L));
         
         assertEquals(0, file.length());
     }
